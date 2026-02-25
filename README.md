@@ -2,7 +2,7 @@
 
 Basic Linux reminder notifications using `notify-send` and `at`.
 
-```bash
+```
 $ rem
 
 Usage: rem <time|time-delta> <message>
