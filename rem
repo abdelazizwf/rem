@@ -1,0 +1,77 @@
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+    echo "Usage: rem <time|time-delta> <message>"
+    echo "  <time>: military time (ex. 14:20, 05:00)."
+    echo "  <time-delta>: add N minutes to current time (ex. +30, +135)."
+    echo "  <message>: message to be displayed (ex. \"Feed the cats\")."
+    exit 1
+fi
+
+intime=$1
+time=0
+
+if [[ $intime == \+* ]]; then
+    if [[ $intime =~ [0-9]+ ]]; then
+        inmins="${BASH_REMATCH}"
+
+        # Maximum inminutes is 1440
+        if [ $inmins -gt 1440 ]; then
+            echo "rem: maximum time-delta is 1440"
+            exit 3
+        fi
+
+        # Get current hour and minute
+        eval "$(date -Iminutes | awk -F'[T+:]' '{print "hour="$2, "min="$3}')"
+        min=$((10#$min))
+        hour=$((10#$hour))
+
+        # Calculate the target hours and minutes
+        extramins=$(( $inmins % 60))
+        mins=$(( $min + $extramins ))
+        extrahours=$(( ($inmins / 60) + ($mins / 60) ))
+        mins=$(( $mins % 60 ))
+        hours=$(( ($hour + $extrahours) % 24 ))
+
+        # Append 0 to single-digit values
+        if [ $(echo $mins | wc -m) -eq 2 ]; then
+            mins="0$mins"
+        fi
+        if [ $(echo $hours | wc -m) -eq 2 ]; then
+            hours="0$hours"
+        fi
+
+        time="$hours:$mins"
+    else
+        echo "rem: wrong time format"
+        exit 2
+    fi
+elif [[ $intime =~ [0-9]{2}\:[0-9]{2} ]]; then
+    # Check if the hour and minute are valid
+    eval "$(echo $intime | awk -F':' '{print "hour="$1, "min="$2}')"
+    min=$((10#$min))
+    hour=$((10#$hour))
+
+    if [ $hour -gt 23 ] || [ $min -gt 59 ]; then
+        echo "rem: wrong time format"
+        exit 2
+    fi
+
+    time=$intime
+else
+    echo "rem: wrong time format"
+    exit 2
+fi
+
+echo "notify-send -u critical -a Reminder -A OK \"$2\"" | at $time &> /dev/null
+
+atexit=$?
+if [ $atexit -ne 0 ]; then
+    echo "rem: something went wrong"
+    echo "Exit code: $atexit"
+    exit 1
+else
+    echo "Reminder scheduled at $time."
+fi
+
+exit 0
